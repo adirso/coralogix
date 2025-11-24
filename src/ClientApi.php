@@ -2,7 +2,8 @@
 
 namespace Adirsolomon\CoralogixPackage;
 
-use Guzzle\Http\Client;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 class ClientAPI
 {
@@ -26,7 +27,14 @@ class ClientAPI
         $this->privateKey = $privateKey;
     }
 
-    public function addLog(Log $log, string $applicationName, string $subSystemName): void
+    /**
+     * @param Log $log
+     * @param string $applicationName
+     * @param string $subSystemName
+     * @param string $endpoint
+     * @return void
+     */
+    public function addLog(Log $log, string $applicationName, string $subSystemName, string $endpoint = 'https://ingress.coralogix.com/api/v1/logs'): void
     {
         try {
             $options = [
@@ -53,9 +61,9 @@ class ClientAPI
                 ]
             ];
 
-            $this->client->post("https://ingress.coralogix.com/api/v1/logs", $options);
-        } catch (\Exception $e) {
-            // TODO: Add what to do.
+            $this->client->post($endpoint, $options);
+        } catch (GuzzleException $e) {
+            report($e);
         }
     }
 }

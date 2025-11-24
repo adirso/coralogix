@@ -22,15 +22,22 @@ class Logger implements LoggerInterface
     private ?string $subsystemName;
 
     /**
+     * @var string
+     */
+    private string $endpoint;
+
+    /**
      * @param ClientAPI $clientAPI
      * @param string $applicationName
      * @param string|null $subsystemName
+     * @param string $endpoint
      */
-    public function __construct(ClientAPI $clientAPI, string $applicationName, ?string $subsystemName)
+    public function __construct(ClientAPI $clientAPI, string $applicationName, ?string $subsystemName, string $endpoint)
     {
         $this->clientAPI = $clientAPI;
         $this->applicationName = $applicationName;
         $this->subsystemName = $subsystemName;
+        $this->endpoint = $endpoint;
     }
 
     /**
@@ -39,8 +46,14 @@ class Logger implements LoggerInterface
      */
     public function log(string $log): void
     {
-        $message = json_decode($log, 1);
-        $this->addLog($this->transformToLog($message));
+        $decoded = json_decode($log, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $this->addLog($this->transformArrayToLog($decoded));
+            return;
+        }
+
+        $this->addLog(new Log(Carbon::now(), Severity::Info->value, trim($log)));
     }
 
     /**
@@ -49,7 +62,7 @@ class Logger implements LoggerInterface
      */
     private function addLog(Log $log): void
     {
-        $this->clientAPI->addLog($log, $this->getApplicationName(), $this->getSubSystemName());
+        $this->clientAPI->addLog($log, $this->getApplicationName(), $this->getSubSystemName(), $this->endpoint);
     }
 
     /**
@@ -72,9 +85,13 @@ class Logger implements LoggerInterface
      * @param array $log
      * @return Log
      */
-    private function transformToLog(array $log): Log
+    private function transformArrayToLog(array $log): Log
     {
-        return new Log(Carbon::createFromTimeString($log['datetime']), $this->getSeverity($log['level']), $log['message']);
+        $timestamp = isset($log['datetime']) ? Carbon::createFromTimeString($log['datetime']) : Carbon::now();
+        $severity = isset($log['level']) ? $this->getSeverity((int)$log['level']) : Severity::Info->value;
+        $message = $log['message'] ?? json_encode($log);
+
+        return new Log($timestamp, $severity, $message);
     }
 
     /**
