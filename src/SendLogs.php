@@ -5,21 +5,21 @@ namespace Adirsolomon\CoralogixPackage;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
-class sendLogs extends Command
+class SendLogs extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'app:send-logs';
+    protected $signature = 'coralogix:send-logs';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Send the current Laravel log file to Coralogix';
 
     /**
      * @var Logger
@@ -44,6 +44,8 @@ class sendLogs extends Command
         $file = sprintf("laravel-%s.log", $date->format('Y-m-d'));
         $path = sprintf("%s/logs", storage_path());
 
+        $this->prepareDirectories($path);
+
         if (file_exists(sprintf("%s/%s", $path, $file))) {
             $newName = $this->getNewName();
             $this->changeFileName($file, $newName, $path);
@@ -57,6 +59,21 @@ class sendLogs extends Command
                 fclose($handle);
             }
             $this->completeWithLogs($path, $newName);
+        }
+    }
+
+    /**
+     * Ensure required directories exist.
+     *
+     * @param string $path
+     * @return void
+     */
+    private function prepareDirectories(string $path): void
+    {
+        foreach (['in_process', 'finished'] as $folder) {
+            if (! is_dir(sprintf('%s/%s', $path, $folder))) {
+                mkdir(sprintf('%s/%s', $path, $folder), 0755, true);
+            }
         }
     }
 
